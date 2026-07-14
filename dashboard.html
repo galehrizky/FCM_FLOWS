@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLOWS | Dashboard</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link rel="icon" href="Assets/flowslogo.png" type="image/x-icon">
+
+    <style>
+        :root {
+            --bg-body: #05080a;
+            --glass-bg: rgba(22, 29, 41, 0.8);
+            --neon-blue: #00d2ff;
+            --neon-green: #00ff88;
+            --neon-yellow: #f1c40f;
+            --neon-red: #ff3333;
+            --sidebar-width: 260px;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #102a43 0%, #05080a 100%);
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* --- Sidebar Responsive Logic --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: rgba(10, 15, 25, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 1200;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0 !important; width: 100% !important; }
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1100;
+            }
+            .overlay.active { display: block; }
+        }
+
+        .nav-link-custom {
+            color: #94a3b8;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .nav-link-custom i { margin-right: 15px; font-size: 1.2rem; }
+        .nav-link-custom:hover, .nav-link-custom.active {
+            background: rgba(0, 210, 255, 0.1);
+            color: var(--neon-blue);
+            box-shadow: inset 4px 0 0 var(--neon-blue);
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            width: calc(100% - var(--sidebar-width));
+            transition: 0.3s;
+        }
+
+        .glass-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .btn-toggle-sidebar {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            display: none;
+            margin-right: 15px;
+        }
+
+        @media (max-width: 991.98px) { .btn-toggle-sidebar { display: block; } }
+
+        .brand-logo { width: 35px; height: 35px; margin-right: 15px; object-fit: contain; filter: drop-shadow(0 0 5px var(--neon-blue)); }
+        
+        .user-tag h6 { 
+            font-size: 0.85rem; 
+            color: var(--neon-blue); 
+            letter-spacing: 1px; 
+            margin: 0; 
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .user-tag #usernameDisplay { 
+            color: #ffffff !important; 
+            margin-left: 5px;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: bottom;
+            max-width: 400px;
+        }
+
+        @media (max-width: 576px) {
+            .user-tag h6 { font-size: 0.7rem; }
+            .user-tag #usernameDisplay { max-width: 120px; }
+            .btn-logout { padding: 4px 10px; font-size: 0.6rem; }
+        }
+
+        .btn-logout {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            border: none; padding: 6px 15px; border-radius: 50px;
+            color: white; font-weight: 600; font-size: 0.7rem; text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        .warning-panel { background: var(--glass-bg); border-radius: 25px; padding: 20px; border: 1px solid rgba(0, 210, 255, 0.2); margin-top: 10px; }
+        .status-header { text-align: center; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 3px; color: var(--neon-blue); margin-bottom: 20px; }
+        
+        .indicator-group { display: flex; justify-content: space-around; gap: 10px; }
+        .indicator-item { text-align: center; opacity: 0.3; transition: 0.5s; flex: 1; }
+        .lamp { width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 8px; border: 3px solid rgba(255,255,255,0.1); background: #111; }
+        
+        .active-aman { opacity: 1; color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
+        .active-aman .lamp { background: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); border-color: #fff; }
+        .active-waspada { opacity: 1; color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); }
+        .active-waspada .lamp { background: var(--neon-yellow); box-shadow: 0 0 20px var(--neon-yellow); border-color: #fff; }
+        .active-bahaya { opacity: 1; color: var(--neon-red); text-shadow: 0 0 10px var(--neon-red); }
+        .active-bahaya .lamp { background: var(--neon-red); box-shadow: 0 0 20px var(--neon-red); border-color: #fff; }
+
+        .data-card { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255,255,255,0.05); 
+            border-radius: 20px; 
+            padding: 20px; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            position: relative; 
+            overflow: hidden; 
+            height: 100%; 
+            z-index: 1;
+        }
+
+        .data-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.4), 
+                        inset 0 0 15px rgba(0, 210, 255, 0.1);
+            background: rgba(22, 29, 41, 0.9);
+        }
+
+        .card-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+        .card-value { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 700; margin: 5px 0; transition: 0.3s; }
+        .data-card:hover .card-value { text-shadow: 0 0 8px var(--neon-blue); }
+        
+        .card-unit { font-size: 0.8rem; color: var(--neon-blue); }
+        .card-desc { font-size: 0.65rem; background: rgba(0, 210, 255, 0.1); display: inline-block; padding: 2px 10px; border-radius: 50px; color: var(--neon-blue); transition: 0.3s; }
+        .data-card:hover .card-desc { background: var(--neon-blue); color: #000; font-weight: 600; }
+        
+        .icon-bg { position: absolute; right: -5px; bottom: -5px; font-size: 3rem; opacity: 0.05; color: white; transition: all 0.5s ease; }
+
+        .graph-card { 
+            background: var(--glass-bg); 
+            border-radius: 20px; 
+            padding: 25px 20px 35px 20px; 
+            border: 1px solid rgba(255,255,255,0.05); 
+            margin-bottom: 25px; 
+            height: 400px; 
+            display: flex;
+            flex-direction: column;
+            overflow: visible; 
+        }
+        
+        .graph-card canvas {
+            flex-grow: 1;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* --- Perbaikan Tabel: Jarak Antar Kolom --- */
+        .history-panel {
+            background: var(--glass-bg);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .table-custom {
+            color: white;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            width: 100%;
+            table-layout: fixed; /* Membuat lebar kolom lebih konsisten */
+        }
+
+        .table-custom thead th {
+            border: none;
+            color: var(--neon-blue);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 15px;
+            text-align: center; /* Teks di tengah */
+        }
+
+        /* Penentuan lebar kolom agar rapi */
+        .table-custom th:nth-child(1) { width: 8%; }
+        .table-custom th:nth-child(2) { width: 18%; }
+        .table-custom th:nth-child(3) { width: 18%; }
+        .table-custom th:nth-child(4) { width: 18%; }
+        .table-custom th:nth-child(5) { width: 18%; }
+        .table-custom th:nth-child(6) { width: 20%; }
+
+        .table-custom tbody tr {
+            background: rgba(255, 255, 255, 0.03);
+            transition: 0.3s;
+        }
+
+        .table-custom tbody tr:hover {
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        .table-custom td {
+            border: none;
+            padding: 15px;
+            font-size: 0.85rem;
+            vertical-align: middle;
+            text-align: center; /* Data di tengah */
+        }
+
+        .table-custom td:first-child { border-radius: 10px 0 0 10px; }
+        .table-custom td:last-child { border-radius: 0 10px 10px 0; }
+
+        .btn-download {
+            background: transparent;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            transition: 0.3s;
+        }
+
+        .btn-download:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 15px var(--neon-green);
+        }
+
+        .date-display {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-blue);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        /* TAMBAHKAN DI SINI */
+        @media (max-width: 576px) {
+
+            .history-panel {
+                padding: 10px;
+            }
+
+            .table-custom {
+                min-width: 600px;
+            }
+
+            .table-custom thead th,
+            .table-custom tbody td {
+                font-size: 0.65rem;
+                padding: 8px 4px;
+                white-space: nowrap;
+            }
+
+            .table-custom th:nth-child(1),
+            .table-custom td:nth-child(1) {
+                width: 8%;
+            }
+
+            .table-custom th:nth-child(2),
+            .table-custom td:nth-child(2) {
+                width: 22%;
+            }
+
+            .table-custom th:nth-child(3),
+            .table-custom td:nth-child(3) {
+                width: 18%;
+            }
+
+            .table-custom th:nth-child(4),
+            .table-custom td:nth-child(4) {
+                width: 16%;
+            }
+
+            .table-custom th:nth-child(5),
+            .table-custom td:nth-child(5) {
+                width: 16%;
+            }
+
+            .table-custom th:nth-child(6),
+            .table-custom td:nth-child(6) {
+                width: 20%;
+            }
+        }
+    </style>
+
+    <script>
+        window.webpushr = window.webpushr || function(){(window.webpushr.q=window.webpushr.q||[]).push(arguments)};
+        webpushr('setup', {
+            'key': 'BBnQfqN7SgiENmJGs-f94EnL7l4mTA4J7_qw7PRp86XswWu_i6BRLeuCHccfVDxCUW5yS66YudHnl_0hu9lhFkA'
+        });
+    
+        (function(w,d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) return;
+            js = d.createElement(s); js.id = id; js.async = 1;
+            js.src = "https://cdn.webpushr.com/app.min.js";
+            fjs.parentNode.appendChild(js);
+        }(window, document, 'script', 'webpushr-jssdk'));
+    </script>
+    </head>
+<body>
+
+    <audio id="alarmSound" src="Assets/alarm.mp3" preload="auto" loop></audio>
+
+    <div class="overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="brand-box mb-5 d-flex justify-content-start align-items-center">
+            <img src="Assets/flowslogo.png" alt="Logo" class="brand-logo">
+            <h3 style="font-family: 'Orbitron'; color: var(--neon-blue); font-weight: 700; margin:0;">FLOWS</h3>
+            <button class="btn d-lg-none text-white ms-auto" onclick="toggleSidebar()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="nav-link-custom active" onclick="switchView('monitoring', this)">
+            <i class="fas fa-desktop"></i> Monitoring
+        </div>
+        <div class="nav-link-custom" onclick="switchView('graph', this)">
+            <i class="fas fa-chart-line"></i> Analytics Graph
+        </div>
+        <div class="nav-link-custom" onclick="switchView('history', this)">
+            <i class="fas fa-history"></i> History Data
+        </div>
+        <div class="mt-auto">
+            <small class="text-muted">Galeh Rizky Alifviansyah</small>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <nav class="glass-nav">
+            <div class="d-flex align-items-center">
+                <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="user-tag">
+                    <h6>Operator: <span id="usernameDisplay">Commander</span></h6>
+                </div>
+            </div>
+            <a href="index.html" class="btn-logout"><i class="fas fa-power-off me-2"></i> LOGOUT</a>
+        </nav>
+
+        <div class="container-fluid px-3 py-4">
+            <div id="view-monitoring" class="view-section active">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="warning-panel">
+                            <div class="status-header">SYSTEM LIVE MONITORING</div>
+                            <div class="indicator-group">
+                                <div id="status-aman" class="indicator-item">
+                                    <div class="lamp"></div>
+                                    <small class="fw-bold">AMAN</small>
+                                </div>
+                                <div id="status-waspada" class="indicator-item">
+                                    <div class="lamp"></div>
+                                    <small class="fw-bold">WASPADA</small>
+                                </div>
+                                <div id="status-bahaya" class="indicator-item">
+                                    <div class="lamp"></div>
+                                    <small class="fw-bold">BAHAYA</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-6 col-lg-4">
+                        <div class="data-card">
+                            <div class="card-label">Jarak Air</div>
+                            <div class="card-value" id="val-jarak">--<span class="card-unit">cm</span></div>
+                            <div class="card-desc" id="desc-jarak">Analysing...</div>
+                            <i class="fas fa-water icon-bg"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4">
+                        <div class="data-card">
+                            <div class="card-label">Intensitas Hujan</div>
+                            <div class="card-value" id="val-rain">--<span class="card-unit">mm/jam</span></div>
+                            <div class="card-desc" id="desc-rain">Analysing...</div>
+                            <i class="fas fa-cloud-showers-heavy icon-bg"></i>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="data-card">
+                            <div class="card-label">Kelembaban Tanah</div>
+                            <div class="card-value" id="val-soil">--<span class="card-unit">%</span></div>
+                            <div class="card-desc" id="desc-soil">Analysing...</div>
+                            <i class="fas fa-seedling icon-bg"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <div class="data-card">
+                            <div class="card-label">Suhu Udara</div>
+                            <div class="card-value" id="val-temp">--<span class="card-unit">°C</span></div>
+                            <i class="fas fa-thermometer-half icon-bg"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-6">
+                        <div class="data-card">
+                            <div class="card-label">Kelembaban Udara</div>
+                            <div class="card-value" id="val-hum">--<span class="card-unit">%</span></div>
+                            <i class="fas fa-tint icon-bg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-graph" class="view-section">
+                <h3 class="mb-4" style="font-family: 'Orbitron'; font-size: 1.2rem;">Real-time Analytics</h3>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="graph-card">
+                            <h6 class="card-label mb-3">Grafik Jarak Air (cm)</h6>
+                            <canvas id="chartJarak"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="graph-card">
+                            <h6 class="card-label mb-3">Grafik Intensitas Hujan</h6>
+                            <canvas id="chartRain"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="graph-card">
+                            <h6 class="card-label mb-3">Grafik Kelembaban Tanah</h6>
+                            <canvas id="chartSoil"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-history" class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h3 style="font-family: 'Orbitron'; font-size: 1.2rem; margin-bottom: 5px;">Data History</h3>
+                        <div id="currentDateDisplay" class="date-display">--</div>
+                    </div>
+                    <button class="btn-download" onclick="downloadPDF()">
+                        <i class="fas fa-file-pdf me-2"></i> DOWNLOAD PDF
+                    </button>
+                </div>
+
+                <div class="history-panel">
+                    <div class="table-responsive">
+                        <table class="table table-custom" id="historyTable">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Waktu</th>
+                                    <th>Jarak</th>
+                                    <th>Soil</th>
+                                    <th>Rain</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAg0fDDpUCPvO7fRJMTiUl5FKmfg8RCnAg",
+            authDomain: "flows-c17fb.firebaseapp.com",
+            databaseURL: "https://flows-c17fb-default-rtdb.firebaseio.com",
+            projectId: "flows-c17fb",
+            storageBucket: "flows-c17fb.firebasestorage.app",
+            messagingSenderId: "851562170903",
+            appId: "1:851562170903:web:57cbe1b175274c209fea52",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const alarm = document.getElementById("alarmSound");
+        let audioEnabled = false;
+
+        // Aktifkan audio setelah interaksi pertama user
+        document.addEventListener("click", () => {
+            if (!audioEnabled) {
+                alarm.play()
+                    .then(() => {
+                        alarm.pause();
+                        alarm.currentTime = 0;
+                        audioEnabled = true;
+                        console.log("Audio berhasil diaktifkan");
+                    })
+                    .catch(err => console.log(err));
+            }
+        }, { once: true });
+        
+        const savedUsername = localStorage.getItem("username") || "Commander";
+
+        const userDisplay = document.getElementById("usernameDisplay");
+        if(userDisplay) userDisplay.innerText = savedUsername;
+
+        let currentJarak = 0, currentRain = 0, currentSoil = 0, currentStatus = "AMAN";
+        let historyData = JSON.parse(localStorage.getItem("flowsHistory")) || [];
+
+        renderTable();
+        let isInitialDataLoaded = false; // Flag untuk mendeteksi data pertama
+
+        window.toggleSidebar = function() {
+            document.getElementById('sidebar').classList.toggle('show');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: { top: 10, bottom: 10, left: 5, right: 15 }
+            },
+            scales: {
+                x: { 
+                    ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, 
+                    grid: { display: false } 
+                },
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { color: '#94a3b8', font: { size: 10 } }, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    suggestedMax: 100 
+                }
+            },
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { enabled: true, backgroundColor: 'rgba(10, 15, 25, 0.9)', titleFont: { family: 'Orbitron' } } 
+            },
+            elements: { 
+                line: { tension: 0.35 }, 
+                point: { radius: 3, hoverRadius: 6, backgroundColor: '#fff' } 
+            },
+            animation: { duration: 800 }
+        };
+
+        function createChart(id, label, color, maxVal) {
+            const opt = JSON.parse(JSON.stringify(commonOptions));
+            opt.scales.y.suggestedMax = maxVal;
+            return new Chart(document.getElementById(id), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color + '33', fill: true, borderWidth: 3 }]
+                },
+                options: opt
+            });
+        }
+
+        const cJarak = createChart('chartJarak', 'Jarak Air', '#00d2ff', 300);
+        const cRain = createChart('chartRain', 'Hujan', '#f1c40f', 100);
+        const cSoil = createChart('chartSoil', 'Tanah', '#00ff88', 100);
+
+        // --- AMBIL DATA DARI FIREBASE SECARA REAL-TIME ---
+        const dataPath = ref(db, 'FLOWS');
+        onValue(dataPath, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Ambil nilai dari firebase dan simpan ke variabel lokal global
+                currentJarak = data.jarak;
+                currentRain = data.rain;
+                currentSoil = data.soil;
+                currentStatus = data.status.toUpperCase().trim();
+
+                // Masukkan data ke tabel histori pada pemuatan awal jika belum terisi
+                if (!isInitialDataLoaded) {
+                    updateHistoryTable();
+                    isInitialDataLoaded = true;
+                }
+
+                // Update UI Monitoring Utama
+                document.getElementById("val-jarak").innerHTML = `${data.jarak}<span class="card-unit">cm</span>`;
+                document.getElementById("desc-jarak").innerText = data.jarak <= 40 ? "DEKAT" : (data.jarak <= 80 ? "SEDANG" : "JAUH");
+                
+                document.getElementById("val-rain").innerHTML = `${data.rain}<span class="card-unit">mm/jam</span>`;
+                document.getElementById("desc-rain").innerText = data.rain <= 5 ? "TIDAK HUJAN" : (data.rain <= 50 ? "GERIMIS" : "HUJAN DERAS");
+                
+                document.getElementById("val-soil").innerHTML = `${data.soil}<span class="card-unit">%</span>`;
+                document.getElementById("desc-soil").innerText = data.soil <= 40 ? "TANAH KERING" : (data.soil <= 80 ? "TANAH LEMBAB" : "TANAH BASAH");
+                
+                document.getElementById("val-temp").innerHTML = `${data.temp}<span class="card-unit">°C</span>`;
+                document.getElementById("val-hum").innerHTML = `${data.hum}<span class="card-unit">%</span>`;
+                
+                // Update Lampu Indikator Sistem & Kontrol Audio Alarm Lokal
+                const st = currentStatus;
+                document.querySelectorAll('.indicator-item').forEach(el => el.className = "indicator-item");
+                
+                if (st === "AMAN") {
+                    document.getElementById("status-aman").classList.add("active-aman");
+                    alarm.pause();
+                    alarm.currentTime = 0;
+                } else if (st === "WASPADA") {
+                    document.getElementById("status-waspada").classList.add("active-waspada");
+                    alarm.pause();
+                    alarm.currentTime = 0;
+                } else if (st === "BAHAYA") {
+                    document.getElementById("status-bahaya").classList.add("active-bahaya");
+                    if (audioEnabled) {
+                        alarm.play().catch(e => console.log("Gagal memutar suara alarm: ", e));
+                    }
+                }
+            }
+        });
+
+        // Loop untuk update grafik data secara periodik setiap 5 detik
+        setInterval(() => {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const charts = [{ chart: cJarak, val: currentJarak }, { chart: cRain, val: currentRain }, { chart: cSoil, val: currentSoil }];
+            charts.forEach(item => {
+                if (item.chart.data.labels.length > 15) {
+                    item.chart.data.labels.shift();
+                    item.chart.data.datasets[0].data.shift();
+                }
+                item.chart.data.labels.push(time);
+                item.chart.data.datasets[0].data.push(item.val);
+                item.chart.update('none');
+            });
+        }, 5000);
+
+        function updateHistoryTable() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const newData = {
+                no: (historyData.length % 100) + 1,
+                waktu: timeString,
+                jarak: Math.round(currentJarak),
+                soil: currentSoil,
+                rain: currentRain,
+                status: currentStatus
+            };
+
+            historyData.push(newData);
+
+            if (historyData.length > 100) {
+                historyData.shift(); // Menghapus data paling lama jika melebihi 100 entri
+            }
+
+            localStorage.setItem("flowsHistory", JSON.stringify(historyData));
+            renderTable();
+        }
+
+        function renderTable() {
+            const body = document.getElementById("historyBody");
+            body.innerHTML = historyData.map((d, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${d.waktu}</td>
+                    <td>${d.jarak}</td>
+                    <td>${d.soil}</td>
+                    <td>${d.rain}</td>
+                    <td style="font-weight: 600; color: ${d.status === 'BAHAYA' ? 'var(--neon-red)' : (d.status === 'WASPADA' ? 'var(--neon-yellow)' : 'var(--neon-green)')}">${d.status}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Simpan data histori secara berkala (setiap 5 menit)
+        setInterval(updateHistoryTable, 300000);
+
+        window.switchView = function(viewId, element) {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-link-custom').forEach(n => n.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+            element.classList.add('active');
+            
+            if (viewId === 'history') {
+                const now = new Date();
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById("currentDateDisplay").innerText = now.toLocaleDateString('id-ID', options);
+            }
+
+            if(window.innerWidth < 992) toggleSidebar();
+        }
+
+        window.downloadPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            doc.setFontSize(18);
+            doc.text("FLOWS - LAPORAN HISTORI SISTEM", 14, 20);
+            
+            doc.setFontSize(11);
+            doc.text(`Nama: ${savedUsername}`, 14, 30);
+            doc.text(`Hari & Tanggal: ${dateStr}`, 14, 37);
+            
+            const rows = [];
+            historyData.forEach(d => {
+                rows.push([d.no, d.waktu, d.jarak, d.soil, d.rain, d.status]);
+            });
+
+            doc.autoTable({
+                head: [['No.', 'Waktu', 'Jarak (cm)', 'Soil', 'Rain', 'Status']],
+                body: rows,
+                startY: 45,
+                theme: 'grid',
+                headStyles: { fillColor: [0, 0, 128], halign: 'center' },
+                columnStyles: {
+                    0: { halign: 'center' },
+                    1: { halign: 'center' },
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                    4: { halign: 'center' },
+                    5: { halign: 'center' }
+                }
+            });
+            doc.save(`Laporan_FLOWS_${Date.now()}.pdf`);
+        }
+    </script>
+</body>
+</html>
