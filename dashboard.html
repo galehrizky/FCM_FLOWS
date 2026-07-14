@@ -526,7 +526,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-messaging.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAg0fDDpUCPvO7fRJMTiUl5FKmfg8RCnAg",
@@ -540,6 +541,26 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        // Inisialisasi Messaging
+        const messaging = getMessaging(app);
+        
+        // Meminta izin notifikasi
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                getToken(messaging, { 
+                    vapidKey: 'BJ0jwZdjHl6Mmpaw_MVWJ5FU41UQkAuHB-3dYdawYvzmDfT1TxA3N2uVZr9mV9zQ0yeYg6fr1mUWFBI29y5K5qg' 
+                })
+                .then((currentToken) => {
+                    if (currentToken) {
+                        // Simpan token ke database di node FLOWS/fcmToken
+                        set(ref(db, 'FLOWS/fcmToken'), currentToken);
+                        console.log("Token FCM tersimpan.");
+                    }
+                }).catch((err) => console.log("Gagal mendapatkan token:", err));
+            } else {
+                console.log("Izin notifikasi ditolak oleh pengguna.");
+            }
+        });
 
         const alarm = document.getElementById("alarmSound");
         let audioEnabled = false;
